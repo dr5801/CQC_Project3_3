@@ -37,11 +37,20 @@ int main(void)
 	printf("\n This is your number -> %s", userInput);
 }
 
-
+/**
+ * executes the state machine
+ */
 double execute(char * text)
 {
 	char character = *text;
 
+	/**
+	 * runs until character is null
+	 */
+	while(character)
+	{
+		character = *++text;
+	}
 
 	return 0.0;
 }
