@@ -11,12 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "State_Enum.h"
 #include "Interim_Result.h"
 
 #define MAX_SIZE 100
 
-double execute(char * text);
+void execute(char * text);
 void startState(char character);
 void integerState(char character);
 void decimalState(char character);
@@ -40,6 +41,7 @@ InterimResult * result;
 State currentState;
 
 char * userInput;
+bool endStatePrinted = false;
 
 /**
  * Runs the program and gets the user input
@@ -79,24 +81,26 @@ void initialize()
 /**
  * executes the state machine
  */
-double execute(char * text)
+void execute(char * text)
 {
 	char character = *text;
+
 
 	/**
 	 * runs until character is null
 	 */
-	while(character  && (currentState != END))
+	while(currentState != END)
 	{
 		MappedStates[currentState].func(character);
 		character = *++text;
 	}
 
-	currentState = END;
 	MappedStates[currentState].func(character);
-	return 0.0;
 }
 
+/**
+ * handles the functionality of the machine when in start state
+ */
 void startState(char character)
 {
 	if(isdigit(character))
@@ -124,6 +128,9 @@ void startState(char character)
 	}
 }
 
+/**
+ * handles the functionality of the machine when in integer state
+ */
 void integerState(char character)
 {
 	if(isdigit(character))
@@ -136,14 +143,20 @@ void integerState(char character)
 		result->p = 0.1;
 		currentState = DECIMAL;
 	}
+	else if(character == '\0')
+	{
+		currentState = END;
+	}
 	else
 	{
 		result->v = 0;
-		result->s = 0;
 		currentState = END;
 	}
 }
 
+/**
+ * handles the functionality of the machine when in the decimal state
+ */
 void decimalState(char character)
 {
 	if(isdigit(character))
@@ -151,17 +164,24 @@ void decimalState(char character)
 		result->v += result->p * (character - '0');
 		result->p /= 10;
 	}
+	else if(character == '\0')
+	{
+		currentState = END;
+	}
 	else
 	{
 		result->v = 0;
-		result->s = 0;
 		currentState = END;
 	}
 }
 
+/**
+ * prints the results when in the end state
+ */
 void endState(char character)
 {
-	printf("\n%.6f", result->v * result->s);
+	printf("\n%.3f", result->v * result->s);
+	endStatePrinted = true;
 }
 
 /**
