@@ -164,6 +164,9 @@ void endState(char character)
 	printf("\n%.6f", result->v * result->s);
 }
 
+/**
+ * free all pointers and set them to null after use
+ */
 void deconstruct()
 {
 	free(userInput);
