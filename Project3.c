@@ -4,7 +4,7 @@
  *  Created on: Feb 25, 2017
  *      Author: Drew Rife and Jordan Long
  *
- *  Implements the State Machine design for C
+ *  Implements the State Machine table driven design for C
  */
 
 #include <stdio.h>
