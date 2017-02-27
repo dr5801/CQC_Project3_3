@@ -15,21 +15,29 @@
 #include "State_Enum.h"
 #include "Interim_Result.h"
 
-#define MAX_SIZE 100
+#define MAX_SIZE 100  // max input size for the user
 
-void execute(char * text);
-void startState(char character);
-void integerState(char character);
-void decimalState(char character);
-void endState(char character);
-void initialize();
-void deconstruct();
+/**
+ * methods for the state machine
+ */
+void execute(void);
+void startState(void);
+void integerState(void);
+void decimalState(void);
+void endState(void);
+void deconstruct(void);
 
+/**
+ * holds the information for a State and a function pointer
+ */
 typedef struct {
 	State * state;
-	void (* func)(char);
+	void (* func)(void);
 }Machine;
 
+/**
+ * Maps the function pointer to the function associated with the State Enum value
+ */
 Machine MappedStates[] = {
 		{START, &startState},
 		{INTEGER, &integerState},
@@ -37,11 +45,14 @@ Machine MappedStates[] = {
 		{END, &endState}
 	};
 
+/* interim result used to store the result after going through each state */
 InterimResult * result;
-State currentState;
 
+/* string pointer for user input */
 char * userInput;
-bool endStatePrinted = false;
+
+/* the current index of userInput */
+int indexOfUserInput = 0;
 
 /**
  * Runs the program and gets the user input
@@ -56,138 +67,131 @@ int main(void)
 	/* remove the newline character added from fgets */
 	userInput[strcspn(userInput, "\n")] = 0;
 
-	initialize();
-	execute(userInput);
+	/* execute the table driven state machine */
+	execute();
+
+	/* deconstruct all dynamically allocated memory after use */
 	deconstruct();
 
 	return 0;
 }
 
+
 /**
- * initialize the system
+ * initializes the result variables and executes the state machine
  */
-void initialize()
+void execute(void)
 {
 	result = (InterimResult *)malloc(sizeof(RESULT));
 
 	/* set the default values */
-	result->p = 1.0;
+	result->p = 0;
 	result->s = 1;
 	result->v = 0;
 
-	currentState = START;
-}
-
-/**
- * executes the state machine
- */
-void execute(char * text)
-{
-	char character = *text;
-
-
-	/**
-	 * runs until character is null
-	 */
-	while(currentState != END)
-	{
-		MappedStates[currentState].func(character);
-		character = *++text;
-	}
-
-	MappedStates[currentState].func(character);
+	/* state machine starts in the start state */
+	startState();
 }
 
 /**
  * handles the functionality of the machine when in start state
  */
-void startState(char character)
+void startState(void)
 {
-	if(isdigit(character))
+	char currentCharacter = *(userInput + indexOfUserInput);
+
+	if(isdigit(currentCharacter))
 	{
-		result->v = character - '0';
-		currentState = INTEGER;
+		result->v = * userInput - '0';
+		MappedStates[INTEGER].func();
 	}
-	else if(character == '+')
+	else if(currentCharacter == '+')
 	{
-		currentState = INTEGER;
+		MappedStates[INTEGER].func();
 	}
-	else if(character == '-')
+	else if(currentCharacter == '-')
 	{
 		result->s = -1;
-		currentState = INTEGER;
+		MappedStates[INTEGER].func();
 	}
-	else if(character == '.')
+	else if(currentCharacter == '.')
 	{
 		result->p = 0.1;
-		currentState = DECIMAL;
+		MappedStates[DECIMAL].func();
 	}
 	else
 	{
-		currentState = END;
+		MappedStates[END].func();
 	}
 }
 
 /**
  * handles the functionality of the machine when in integer state
  */
-void integerState(char character)
+void integerState(void)
 {
-	if(isdigit(character))
+	indexOfUserInput++;
+	char currentCharacter = *(userInput + indexOfUserInput);
+
+	if(isdigit(currentCharacter))
 	{
 		result->v *= 10;
-		result->v += character - '0';
+		result->v += currentCharacter - '0';
+		MappedStates[INTEGER].func( );
 	}
-	else if(character == '.')
+	else if(currentCharacter == '.')
 	{
 		result->p = 0.1;
-		currentState = DECIMAL;
+		MappedStates[DECIMAL].func( );
 	}
-	else if(character == '\0')
+	else if(currentCharacter == '\0')
 	{
-		currentState = END;
+		MappedStates[END].func( );
 	}
 	else
 	{
 		result->v = 0;
-		currentState = END;
+		MappedStates[END].func( );
 	}
 }
 
 /**
  * handles the functionality of the machine when in the decimal state
  */
-void decimalState(char character)
+void decimalState(void)
 {
-	if(isdigit(character))
+	indexOfUserInput++;
+	char currentCharacter = *(userInput + indexOfUserInput);
+
+	if(isdigit(currentCharacter))
 	{
-		result->v += result->p * (character - '0');
+		result->v += result->p * ( currentCharacter - '0');
 		result->p /= 10;
+		MappedStates[DECIMAL].func( );
 	}
-	else if(character == '\0')
+	else if(currentCharacter == '\0')
 	{
-		currentState = END;
+		MappedStates[END].func( );
 	}
 	else
 	{
 		result->v = 0;
-		currentState = END;
+		MappedStates[END].func( );
 	}
 }
 
 /**
  * prints the results when in the end state
  */
-void endState(char character)
+void endState(void)
 {
 	printf("\n%.3f", result->v * result->s);
-	endStatePrinted = true;
 }
 
 /**
  * free all pointers and set them to null after use
  */
-void deconstruct()
+void deconstruct(void)
 {
 	free(userInput);
 	userInput = NULL;
