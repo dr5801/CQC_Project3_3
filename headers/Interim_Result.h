@@ -14,4 +14,7 @@ typedef struct interimResult{
 	double v;
 }InterimResult, *RESULT;
 
+/* interim result used to store the result after going through each state */
+InterimResult * result;
+
 #endif /* INTERIM_RESULT_H_ */
