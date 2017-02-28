@@ -12,38 +12,56 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+
 #include "State_Enum.h"
 #include "Interim_Result.h"
 
 #define MAX_SIZE 100  // max input size for the user
 
 /**
+ * holds the information for a State and a function pointer
+ */
+typedef struct {
+	State currentState;
+	bool (* isVerified)(char);
+	void (* action)(char);
+	State nextState;
+}Edge;
+
+
+/**
  * methods for the state machine
  */
-void execute(void);
+void execute(char * string);
+Edge searchForEdge(State currentState, char character);
 void startState(void);
 void integerState(void);
 void decimalState(void);
 void endState(void);
 void deconstruct(void);
 
-/**
- * holds the information for a State and a function pointer
- */
-typedef struct {
-	State * state;
-	void (* func)(void);
-}Machine;
+bool digitInputVerifier(char character);
+bool minusInputVerifier(char character);
+bool plusInputVerifier(char character);
+bool periodInputVerifier(char character);
 
-/**
- * Maps the function pointer to the function associated with the State Enum value
- */
-Machine MappedStates[] = {
-		{START, &startState},
-		{INTEGER, &integerState},
-		{DECIMAL, &decimalState},
-		{END, &endState}
-	};
+void valueIsDigitAction(char character);
+void negateAction(char character);
+void noAction(char character);
+void startFraction(char character);
+void continuingIntegerAction(char character);
+void continuingFractionAction(char character);
+
+Edge edge[] = {
+		{START, &digitInputVerifier, &valueIsDigitAction, INTEGER},
+		{START, &minusInputVerifier, &negateAction, INTEGER},
+		{START, &plusInputVerifier, &noAction, INTEGER},
+		{START, &periodInputVerifier, &startFraction, DECIMAL},
+		{INTEGER, &digitInputVerifier, &continuingIntegerAction, INTEGER},
+		{INTEGER, &periodInputVerifier, &startFraction, DECIMAL},
+		{DECIMAL, &digitInputVerifier, &continuingFractionAction, DECIMAL}
+};
+
 
 /* interim result used to store the result after going through each state */
 InterimResult * result;
@@ -68,7 +86,10 @@ int main(void)
 	userInput[strcspn(userInput, "\n")] = 0;
 
 	/* execute the table driven state machine */
-	execute();
+	execute(userInput);
+
+	/* print the result */
+	printf("%.3f", result->s * result->v);
 
 	/* deconstruct all dynamically allocated memory after use */
 	deconstruct();
@@ -80,7 +101,7 @@ int main(void)
 /**
  * initializes the result variables and executes the state machine
  */
-void execute(void)
+void execute(char *text)
 {
 	result = (InterimResult *)malloc(sizeof(RESULT));
 
@@ -90,102 +111,134 @@ void execute(void)
 	result->v = 0;
 
 	/* state machine starts in the start state */
-	startState();
-}
+	State currentState = START;
 
-/**
- * handles the functionality of the machine when in start state
- */
-void startState(void)
-{
-	char currentCharacter = *(userInput + indexOfUserInput);
+	int index;
+	bool invalidInput = false;
+	for(index = 0; index < strlen(text) && !invalidInput; index++)
+	{
+		char character = *(text + index);
+		Edge nextEdge = searchForEdge(currentState, character);
 
-	if(isdigit(currentCharacter))
-	{
-		result->v = * userInput - '0';
-		MappedStates[INTEGER].func();
-	}
-	else if(currentCharacter == '+')
-	{
-		MappedStates[INTEGER].func();
-	}
-	else if(currentCharacter == '-')
-	{
-		result->s = -1;
-		MappedStates[INTEGER].func();
-	}
-	else if(currentCharacter == '.')
-	{
-		result->p = 0.1;
-		MappedStates[DECIMAL].func();
-	}
-	else
-	{
-		MappedStates[END].func();
+		if(nextEdge.nextState != -1)
+		{
+			nextEdge.action(character);
+			currentState = nextEdge.nextState;
+		}
+		else
+		{
+			invalidInput = true;
+			result->v = 0;
+			result->s = 0;
+		}
 	}
 }
 
 /**
- * handles the functionality of the machine when in integer state
+ * searches for the next edge
  */
-void integerState(void)
+Edge searchForEdge(State currentState, char character)
 {
-	indexOfUserInput++;
-	char currentCharacter = *(userInput + indexOfUserInput);
+	Edge nextEdge = {9 , NULL, NULL , 9 };
 
-	if(isdigit(currentCharacter))
+	int size = sizeof(edge)/sizeof(edge[0]);
+	int index;
+	for(index = 0; index < size; index++)
 	{
-		result->v *= 10;
-		result->v += currentCharacter - '0';
-		MappedStates[INTEGER].func( );
+		if(edge[index].currentState == currentState && edge[index].isVerified(character))
+		{
+			nextEdge = edge[index];
+		}
 	}
-	else if(currentCharacter == '.')
+
+	if(nextEdge.isVerified == NULL && nextEdge.action == NULL)
 	{
-		result->p = 0.1;
-		MappedStates[DECIMAL].func( );
+		nextEdge.nextState = -1;
 	}
-	else if(currentCharacter == '\0')
-	{
-		MappedStates[END].func( );
-	}
-	else
-	{
-		result->v = 0;
-		MappedStates[END].func( );
-	}
+
+	return nextEdge;
 }
 
 /**
- * handles the functionality of the machine when in the decimal state
+ * verifies a digit inputted
  */
-void decimalState(void)
+bool digitInputVerifier(char character)
 {
-	indexOfUserInput++;
-	char currentCharacter = *(userInput + indexOfUserInput);
-
-	if(isdigit(currentCharacter))
-	{
-		result->v += result->p * ( currentCharacter - '0');
-		result->p /= 10;
-		MappedStates[DECIMAL].func( );
-	}
-	else if(currentCharacter == '\0')
-	{
-		MappedStates[END].func( );
-	}
-	else
-	{
-		result->v = 0;
-		MappedStates[END].func( );
-	}
+	return isdigit(character);
 }
 
 /**
- * prints the results when in the end state
+ * verifies if minus sign
  */
-void endState(void)
+bool minusInputVerifier(char character)
 {
-	printf("\n%.3f", result->v * result->s);
+	return (character == '-');
+}
+
+/**
+ * verifies if the character is a plus sign
+ */
+bool plusInputVerifier(char character)
+{
+	return (character == '+');
+}
+
+/**
+ * verifies the character is a period
+ */
+bool periodInputVerifier(char character)
+{
+	return (character == '.');
+}
+
+/**
+ * sets the value is digit action
+ */
+void valueIsDigitAction(char character)
+{
+	result->v = character - '0';
+}
+
+/**
+ * sets sign to -1
+ */
+void negateAction(char character)
+{
+	result->s = -1;
+}
+
+/**
+ * does nothing
+ */
+void noAction(char character) {}
+
+/**
+ * Executes an action when an input is '.'
+ * Sets the pont to (0.1) since it's a fraction (/10)
+ *
+ * THIS SHOULD ONLY BE ON THE FIRST TRNASITION TO DECIMAL STATE
+ */
+void startFraction(char character)
+{
+	result->p = 0.1;
+}
+
+/**
+ * When the integer state is repeated
+ */
+void continuingIntegerAction(char character)
+{
+	result->v = (10 * result->v) + (character - '0');
+}
+
+/**
+ * should only be when decimal state is repeated
+ */
+void continuingFractionAction(char character)
+{
+	double value = result->p * (character - '0');
+	result->v += value;
+	result->p /= 10;
 }
 
 /**
