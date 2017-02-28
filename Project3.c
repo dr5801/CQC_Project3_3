@@ -101,11 +101,13 @@ void execute(char *text)
 		char character = *(text + index);
 		Edge nextEdge = searchForEdge(currentState, character);
 
+		/* if there is a valid state to go to (no invalid inputs) */
 		if(nextEdge.nextState != -1)
 		{
 			nextEdge.action(character);
 			currentState = nextEdge.nextState;
 		}
+		/* invalid input */
 		else
 		{
 			invalidInput = true;
@@ -132,6 +134,7 @@ Edge searchForEdge(State currentState, char character)
 		}
 	}
 
+	/* if it's null then set next state to an invalid state (-1) */
 	if(nextEdge.isVerified == NULL && nextEdge.action == NULL)
 	{
 		nextEdge.nextState = -1;
