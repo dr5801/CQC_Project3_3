@@ -36,10 +36,6 @@ typedef struct {
  */
 void execute(char * string);
 Edge searchForEdge(State currentState, char character);
-void startState(void);
-void integerState(void);
-void decimalState(void);
-void endState(void);
 void deconstruct(void);
 
 Edge edge[] = {
@@ -82,7 +78,6 @@ int main(void)
 
 	return 0;
 }
-
 
 /**
  * initializes the result variables and executes the state machine
